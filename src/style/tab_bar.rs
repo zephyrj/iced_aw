@@ -40,17 +40,17 @@ pub struct Appearance {
 /// The appearance of a [`TabBar`](crate::native::tab_bar::TabBar).
 pub trait StyleSheet {
     ///Style for the trait to use.
-    type Style: Default + Copy;
+    type Style: Default;
 
     /// The normal appearance0of a tab bar and its tab labels.
     ///
     /// `is_active` is true if the tab is selected.
-    fn active(&self, style: Self::Style, is_active: bool) -> Appearance;
+    fn active(&self, style: &Self::Style, is_active: bool) -> Appearance;
 
     /// The appearance when the tab bar and/or a tab label is hovered.
     ///
     /// `is_active` is true if the tab is selected.
-    fn hovered(&self, style: Self::Style, is_active: bool) -> Appearance;
+    fn hovered(&self, style: &Self::Style, is_active: bool) -> Appearance;
 }
 
 impl Default for Appearance {
@@ -68,8 +68,8 @@ impl Default for Appearance {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[allow(missing_docs, clippy::missing_docs_in_private_items)]
+#[derive(Default)]
+#[allow(missing_docs, clippy::missing_docs_in_private_items, missing_debug_implementations)]
 /// Default Prebuilt ``TabBar`` Styles
 pub enum TabBarStyles {
     #[default]
@@ -78,6 +78,7 @@ pub enum TabBarStyles {
     Blue,
     Green,
     Purple,
+    Custom(Box<dyn StyleSheet<Style=Theme>>)
 }
 
 impl From<TabBarStyles> for String {
@@ -88,6 +89,7 @@ impl From<TabBarStyles> for String {
             TabBarStyles::Blue => "Blue",
             TabBarStyles::Green => "Green",
             TabBarStyles::Purple => "Purple",
+            TabBarStyles::Custom(_) => "Custom"
         })
     }
 }
@@ -95,7 +97,7 @@ impl From<TabBarStyles> for String {
 impl StyleSheet for Theme {
     type Style = TabBarStyles;
 
-    fn active(&self, style: Self::Style, is_active: bool) -> Appearance {
+    fn active(&self, style: &Self::Style, is_active: bool) -> Appearance {
         let mut appearance = Appearance::default();
 
         match style {
@@ -163,12 +165,15 @@ impl StyleSheet for Theme {
                 appearance.icon_color = text_color;
                 appearance.text_color = text_color;
             }
+            TabBarStyles::Custom(custom) => {
+                appearance = custom.active(self, is_active);
+            }
         }
 
         appearance
     }
 
-    fn hovered(&self, style: Self::Style, is_active: bool) -> Appearance {
+    fn hovered(&self, style: &Self::Style, is_active: bool) -> Appearance {
         match style {
             TabBarStyles::Default => Appearance {
                 tab_label_background: Background::Color([0.9, 0.9, 0.9].into()),
@@ -198,6 +203,9 @@ impl StyleSheet for Theme {
                     text_color,
                     ..self.active(style, is_active)
                 }
+            }
+            TabBarStyles::Custom(custom) => {
+                custom.hovered(self, is_active)
             }
         }
     }
